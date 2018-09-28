@@ -1,0 +1,6 @@
+xxhash
+attr
+sqlalchemy
+flask
+pytest
+docker
