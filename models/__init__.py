@@ -31,7 +31,7 @@ class CopyrightLicense(Base):
     USed to map "closest license" for a given copyright to programatically
     determine usability and requirements
     """
-    __table_name__ = 'copyright_status'
+    __tablename__ = 'copyright_license'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -43,9 +43,9 @@ class FileContainer(Base):
     """
     Points to system and root folder for file references
     """
-    __table_name__ = 'file_container'
+    __tablename__ = 'file_container'
 
-    id = Column(Integer, primary_key=False)
+    id = Column(Integer, primary_key=True)
     name = Column(String)
     container_type = Column(String)
     path = Column(String)
@@ -53,9 +53,10 @@ class FileContainer(Base):
 
 class FileReference(Base):
     """
-
+    Represents a file in storage.  This is used for source files for testing and will
+    be created for generated files as results of testing steps.
     """
-    __table_name__ = 'file_reference'
+    __tablename__ = 'file_reference'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -71,14 +72,20 @@ class FileReference(Base):
 
 
 class TestSuite(Base):
-    __table_name__ = 'test_suite'
+    """
+    This defines a complete test run.
+    """
+    __tablename__ = 'test_suite'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
 
 
 class TestSuiteEntry(Base):
-    __table_name__ = 'test_run'
+    """
+    xref table to join test
+    """
+    __tablename__ = 'test_run'
 
     id = Column(Integer, primary_key=True)
     test_suite_id = ForeignKey('test_suite.id')
@@ -87,7 +94,19 @@ class TestSuiteEntry(Base):
 
 
 class TestCaseVersion(Base):
-    __table_name__ = 'test_case_version'
+    """
+    Holds a full test case.  This may include multiple processes to generate resulting files and multiple
+    comparison actions.  The job field defines all custom operations, including expected results.
+
+    item_id: a representation of the test case operation.  It does not change for a new record that modifies
+    the operational parameters, as it is still the same test case.
+
+    job_hash: hashes the relevant fields that impact test case uniqueness
+
+    job: This will be a complex JSON structure that will define source files, invocation targets, result files,
+    comparisons and results evaluation.  This is tightly coupled to the code that will be executed in the runner.
+    """
+    __tablename__ = 'test_case_version'
 
     id = Column(Integer, primary_key=True)
 
@@ -96,40 +115,82 @@ class TestCaseVersion(Base):
     title = Column(String, nullable=False)
     description = Column(String)
     created = Column(DateTime, default=datetime.utcnow)
-
-    job = Column(JSON)
-
-    # Programmatically generate this with data.
     job_hash = Column(String(16), nullable=False)
+    job = Column(JSON)
 
 
 class Application(Base):
-    __table_name__ = 'application'
+    """
+    Application for use in a test case job.  This gives a group for InvocationTargetVersions
+    """
+    __tablename__ = 'application'
 
-    id = Column(Integer, nullable=False)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
 
 
 class InvocationTargetVersion(Base):
-    __table_name__ = 'invocation_target'
+    """
+    Unique version of process to run in a docker build.  Called as part of a TestCaseVersion job.
+    """
+    __tablename__ = 'invocation_target'
 
     id = Column(Integer, primary_key=True)
     hash = Column(String(16))
     application_id = ForeignKey('application.id')
     translator_function = Column(String)
     invocation_command = Column(String)
-    docker_tag = Column(String)
-    docker_registry = Column(String)
+    docker_repo = Column(String)
+    dockerfile = Column(String)
+    git_repo = Column(String)   #requires .git suffix
+    commit = Column(String)
+    # commit is used for docker_tag unless explicitly overridden.
+    # When we build, commit will be the docker tag.
+    override_docker_tag = Column(String, nullable=True)
     version_description = Column(String)
     version = Column(Integer, nullable=False)
     created = Column(DateTime, default=datetime.utcnow)
 
 
 class CachedResult(Base):
-    __table_name__ = 'cached_result'
+    """
+    Results created from a job process.
+
+    task_hash: Provides a unique hash of what was used to create this result.  Used for not executing
+    previously computed result files.
+
+    invocation_target_id and item_job_id: are used to allow clean up of cached results if a test case or
+    application version is not longer part of the test suite.
+    """
+    __tablename__ = 'cached_result'
 
     id = Column(Integer, primary_key=True)
     task_hash = Column(String(16))
     file_id = ForeignKey('file_reference.id')
     invocation_target_id = ForeignKey('invocation_target.id')
     item_job_id = ForeignKey('test_case_version.job_id')
+
+
+def get_engine_uri(engine_name):
+    return 'sqlite://'
+
+
+def init_engine(engine_name):
+    global engine
+    global Session
+
+    uri = get_engine_uri(engine_name)
+    engine = create_engine(uri)
+    Session = sessionmaker(bind=engine)
+
+
+def clean_database():
+    global engine
+    global Session
+    Base.metadata.drop_all(engine)
+
+
+def initialize_database():
+    global engine
+    global Session
+    Base.metadata.create_all(engine)
