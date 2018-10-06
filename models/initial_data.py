@@ -23,8 +23,7 @@ INITIAL_DATA = {
          'name': 'Initial Test'}
     ],
     'TestSuiteEntry': [
-        {'id': 1,
-         'test_suite_id': 1,
+        {'test_suite_id': 1,
          'test_case_job_hash': 'ABCD',
          'test_case_item_id': 1}
     ],
