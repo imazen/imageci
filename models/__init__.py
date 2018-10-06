@@ -36,7 +36,7 @@ class CopyrightLicense(Base):
     USed to map "closest license" for a given copyright to programatically
     determine usability and requirements
     """
-    __tablename__ = 'copyright_license'
+    __table_name__ = 'copyright_status'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -52,9 +52,9 @@ class FileContainer(Base):
     """
     Points to system and root folder for file references
     """
-    __tablename__ = 'file_container'
+    __table_name__ = 'file_container'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=False)
     name = Column(String)
     container_type = Column(String)
     path = Column(String)
@@ -69,10 +69,9 @@ class FileContainer(Base):
 
 class FileReference(Base):
     """
-    Represents a file in storage.  This is used for source files for testing and will
-    be created for generated files as results of testing steps.
+
     """
-    __tablename__ = 'file_reference'
+    __table_name__ = 'file_reference'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -109,10 +108,7 @@ test_suite_entry = Table(
 
 
 class TestSuite(Base):
-    """
-    This defines a complete test run.
-    """
-    __tablename__ = 'test_suite'
+    __table_name__ = 'test_suite'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -147,19 +143,7 @@ class TestSuite(Base):
 
 
 class TestCaseVersion(Base):
-    """
-    Holds a full test case.  This may include multiple processes to generate resulting files and multiple
-    comparison actions.  The job field defines all custom operations, including expected results.
-
-    item_id: a representation of the test case operation.  It does not change for a new record that modifies
-    the operational parameters, as it is still the same test case.
-
-    job_hash: hashes the relevant fields that impact test case uniqueness
-
-    job: This will be a complex JSON structure that will define source files, invocation targets, result files,
-    comparisons and results evaluation.  This is tightly coupled to the code that will be executed in the runner.
-    """
-    __tablename__ = 'test_case_version'
+    __table_name__ = 'test_case_version'
 
     id = Column(Integer, primary_key=True)
     # This does not change with versioning of test case
@@ -179,12 +163,9 @@ class TestCaseVersion(Base):
 
 
 class Application(Base):
-    """
-    Application for use in a test case job.  This gives a group for InvocationTargetVersions
-    """
-    __tablename__ = 'application'
+    __table_name__ = 'application'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, nullable=False)
     name = Column(String, nullable=False)
     created = Column(DateTime, default=datetime.utcnow)
     invocation_targets = relationship('InvocationTargetVersion', back_populates='application')
@@ -194,10 +175,7 @@ class Application(Base):
 
 
 class InvocationTargetVersion(Base):
-    """
-    Unique version of process to run in a docker build.  Called as part of a TestCaseVersion job.
-    """
-    __tablename__ = 'invocation_target'
+    __table_name__ = 'invocation_target'
 
     id = Column(Integer, primary_key=True)
     hash = Column(String(16))
@@ -222,16 +200,7 @@ class InvocationTargetVersion(Base):
 
 
 class CachedResult(Base):
-    """
-    Results created from a job process.
-
-    task_hash: Provides a unique hash of what was used to create this result.  Used for not executing
-    previously computed result files.
-
-    invocation_target_id and item_job_id: are used to allow clean up of cached results if a test case or
-    application version is not longer part of the test suite.
-    """
-    __tablename__ = 'cached_result'
+    __table_name__ = 'cached_result'
 
     id = Column(Integer, primary_key=True)
     task_hash = Column(String(16))

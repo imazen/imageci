@@ -1,85 +1,45 @@
 import pytest
 import docker
-from runner import docker_runner
+from runner.docker_runner import DockerRunner, DockerExecConfig, DockerExecResults, ImageflowRunner
+from runner.docker_setup import DockerImageSetup
 
 
-@pytest.fixture
-def example_runner():
-    return docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "ci/docker/hub/tool/Dockerfile",
+
+def test_run_imageflow():
+    imageflow = DockerImageSetup("imazen/imageflow_tool_imageci", "docker/imageflow_tool_imageci/Dockerfile",
                                    "https://github.com/imazen/imageflow.git",
-                                   "4cbf721c36b461c22399f80252bae96004cd761d")
+                                   "9c42df788fc8163357259a2a81142619005e9995")
+
+    print("Getting docker image ready")
+    assert imageflow.ready_image()
+
+    exec_config = ImageflowRunner().config()
+
+    test_result = DockerRunner(imageflow, exec_config).run()
+    assert test_result.success, test_result.debug
 
 
-def test_pull(example_runner):
-    assert example_runner.pull_image_if_missing()
 
-def test_pull_nonexistent_repo():
-    missing = docker_runner.DockerImageSetup("imazen/missing_repository", "",
-                                          "https://github.com/imazen/imageflow.git",
-                                          "4cbf721c36b461c22399f80252bae96004cd761d")
-    assert not missing.pull_image_if_missing()
+def test_execute_command():
+    client = docker.from_env().api
+    client.pull('busybox:latest')
+    container = client.create_container('busybox:latest', 'cat', stdin_open=True)
+    id = container['Id']
+    client.start(id)
 
-def test_pull_nonexistent_image():
-    missing_image = docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "",
-                                                   "https://github.com/imazen/imageflow.git",
-                                                   "nonexistent")
-    assert not missing_image.pull_image_if_missing()
+    res = client.exec_create(id, ['echo', 'hello'])
+    assert 'Id' in res
 
+    exec_log = client.exec_start(res)
+    assert exec_log == b'hello\n'
 
-def test_push(example_runner):
-    assert example_runner.push_image()
+    res = client.exec_create(id, ['/bin/false'])
+    exec_log = client.exec_start(res)
+    assert exec_log == b''
+    assert client.exec_inspect(res)['ExitCode'] == 1
 
+    res = client.exec_create(id, ['/bin/sh', '-c', '(>&2 echo "error")'])
 
-def test_push_missing_repos():
-    missing = docker_runner.DockerImageSetup("imazen/missing_repository", "",
-                                          "https://github.com/imazen/imageflow.git",
-                                          "4cbf721c36b461c22399f80252bae96004cd761d")
-    assert not missing.push_image()
-
-
-def test_image_present_local_missing_repo(example_runner):
-
-    missing_repo = docker_runner.DockerImageSetup("imazen/missing_repository", "",
-                                          "https://github.com/imazen/imageflow.git",
-                                          "4cbf721c36b461c22399f80252bae96004cd761d")
-    assert not missing_repo.image_present_local()
-
-def test_image_present_local_missing_image(example_runner):
-        missing_image = docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "",
-                                                      "https://github.com/imazen/imageflow.git",
-                                                      "nonexistent")
-        assert not missing_image.image_present_local()
-
-
-def test_build(example_runner):
-    assert example_runner.build_image()
-
-
-def test_build_missing_gitrepo():
-    missing_git = docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "",
-                                                   "https://github.com/imazen/nonexistent.git",
-                                                   "4cbf721c36b461c22399f80252bae96004cd761d")
-    with pytest.raises(docker.errors.APIError):
-        missing_git.build_image()
-
-
-def test_build_missing_gitcommit():
-    missing_git = docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "",
-                                                   "https://github.com/imazen/imageflow.git",
-                                                   "4cbf721c36b461c22a99f80252bae96004cd761d")
-    with pytest.raises(docker.errors.APIError):
-        missing_git.build_image()
-
-
-def test_ready(example_runner):
-    assert example_runner.ready_image()
-
-
-def test_ready_missing_gitcommit():
-    missing_git = docker_runner.DockerImageSetup("imazen/imageflow_tool_testing", "",
-                                                   "https://github.com/imazen/imageflow.git",
-                                                   "4cbf721c36b461c22a99f80252bae96004cd761d")
-    with pytest.raises(docker.errors.APIError):
-        missing_git.ready_image()
-
-
+    exec_log = client.exec_start(res)
+    assert exec_log == b'error\n'
+    assert client.exec_inspect(res)['ExitCode'] == 0
