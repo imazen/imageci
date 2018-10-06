@@ -2,10 +2,5 @@ xxhash
 attr
 sqlalchemy
 flask
-docker
-
 pytest
-pytest-cov
-pytest_mock
-coverage
-mock
+docker
