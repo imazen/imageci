@@ -1,3 +1,20 @@
+#
+# This hold data to populate the db with start data.
+#
+# Root object is a dictionary with the key being the ORM object name.
+# The value is a list of dictionaries with each representing a row.
+#
+# The extra work at keeping key/name pairs will allow nullable fields to be
+# added with no extra work at input and helps self describe.
+#
+# In a situation where a parent child relationship is represented in the data,
+# a special record dictionary field 'kw_objects' is used to allow creating the
+# child object with a reference to the parent.
+#
+# 'parent_field_name' is the name that you assign the parent object to in the child object creations.
+# 'object_class_name' is the class name to be created for the child object.
+# 'objects': is a list of dictionaries for the child, the same as the root dictionaries in format.
+#
 INITIAL_DATA = {
     'CopyrightLicense': [],
     'FileContainer': [
@@ -20,24 +37,24 @@ INITIAL_DATA = {
     ],
     'TestSuite': [
         {'id': 1,
-         'name': 'Initial Test'}
-    ],
-    'TestSuiteEntry': [
-        {'test_suite_id': 1,
-         'test_case_job_hash': 'ABCD',
-         'test_case_item_id': 1}
-    ],
-    'TestCaseVersion': [
-        {'id': 1,
-         'item_id': 1,
-         'title': 'Test item 1',
-         'job_hash': 'ABCD',
-         'job': '{}'},
-        {'id': 2,
-         'item_id': 1,
-         'title': 'Test item 1',
-         'job_hash': 'EFGH',
-         'job': '{}'},
+         'name': 'Initial Test',
+         'kw_objects': {
+             'parent_field_name': 'test_suite',
+             'object_class_name': 'TestCaseVersion',
+             'objects': [
+                 {'id': 1,
+                  'item_id': 1,
+                  'title': 'Test item 1',
+                  'job_hash': 'ABCD',
+                  'job': '{}'},
+                 {'id': 2,
+                  'item_id': 1,
+                  'title': 'Test item 1',
+                  'job_hash': 'EFGH',
+                  'job': '{}'},
+             ],
+            }
+         }
     ],
     'Application': [
         {'id': 1,

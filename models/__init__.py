@@ -159,8 +159,8 @@ class TestCaseRun(Base):
     __tablename__ = 'test_case_run'
 
     id = Column(Integer, primary_key=True)
-    test_suite_id = Column(Integer, ForeignKey='test_suite.id')
-    test_case_version_id = Column(Integer, ForeignKey='test_case_version.id')
+    test_suite_id = Column(Integer, ForeignKey('test_suite.id'))
+    test_case_version_id = Column(Integer, ForeignKey('test_case_version.id'))
     invocation_target_id = Column(Integer, nullable=False)
     start_time = Column(DateTime)
     end_time = Column(DateTime)
@@ -260,7 +260,21 @@ def populate_database(session):
         inserts = []
         class_obj = globals()[class_name]
         for record_fields in records:
-            inserts.append(class_obj(**record_fields))
+            kw_objects = record_fields.get('kw_objects', None)
+            child_class = None
+            if kw_objects:
+                del(record_fields['kw_objects'])
+                child_class = globals()[kw_objects['object_class_name']]
+
+            db_obj = class_obj(**record_fields)
+            inserts.append(db_obj)
+
+            if kw_objects:
+                for child_fields in kw_objects['objects']:
+                    parent_field = kw_objects['parent_field_name']
+                    child_fields[parent_field] = [db_obj]
+                    child_obj = child_class(**child_fields)
+                    inserts.append(child_obj)
         session.bulk_save_objects(inserts)
         session.commit()
 
